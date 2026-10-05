@@ -22,7 +22,7 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    target: 'web',
+    target: 'esnext',
     outDir: 'dist',
     assetsDir: 'assets',
   },
