@@ -79,7 +79,13 @@
             :style="{ borderColor: product.color || '#e5e7eb' }"
           >
             <div class="text-center">
-              <div class="text-3xl mb-2">{{ getProductIcon(product.name) }}</div>
+              <img
+                v-if="product.image"
+                :src="product.image"
+                :alt="product.name"
+                class="w-16 h-16 mx-auto mb-2 rounded-lg object-cover"
+              />
+              <div v-else class="text-3xl mb-2">{{ getProductIcon(product.name) }}</div>
               <h3 class="font-bold text-sm mb-1">{{ product.name }}</h3>
               <p class="text-lg font-bold" :style="{ color: product.color || '#1f2937' }">
                 R$ {{ product.price.toFixed(2) }}
@@ -203,6 +209,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePDVStore } from '@/stores/pdv.store'
+import { loadProducts } from '@/utils/products'
 
 // Stores
 const authStore = useAuthStore()
@@ -214,15 +221,8 @@ const loginError = ref(null)
 const isLoading = ref(false)
 const isLoadingLogin = ref(false)
 
-// Produtos (carregados do banco ou seed local)
-const products = ref([
-  { id: 'prod-1', name: 'Cerveja', price: 8, color: '#f59e0b', active: true, stock: 200 },
-  { id: 'prod-2', name: 'Refrigerante', price: 5, color: '#ef4444', active: true, stock: 150 },
-  { id: 'prod-3', name: 'Espetinho', price: 6, color: '#8b5cf6', active: true, stock: 100 },
-  { id: 'prod-4', name: 'Água', price: 3, color: '#3b82f6', active: true, stock: null },
-  { id: 'prod-5', name: 'Whisky', price: 15, color: '#78350f', active: true, stock: 50 },
-  { id: 'prod-6', name: 'Vinho', price: 12, color: '#7f1d1d', active: true, stock: 5 },
-])
+// Produtos (do Admin, salvos no navegador)
+const products = ref([])
 
 // Computed
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -318,5 +318,6 @@ function getProductIcon(productName) {
 // Lifecycle
 onMounted(async () => {
   await authStore.initialize()
+  products.value = loadProducts()
 })
 </script>

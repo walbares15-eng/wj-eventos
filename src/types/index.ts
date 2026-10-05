@@ -24,6 +24,7 @@ export interface Product {
   color: string
   active: boolean
   stock: number | null
+  image?: string | null
   createdAt: string
   updatedAt: string
 }
