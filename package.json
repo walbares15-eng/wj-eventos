@@ -41,7 +41,7 @@
     "typescript": "^5.3.3",
     "vike": "^0.4.144",
     "vite": "^5.0.10",
-    "vite-plugin-vue": "^4.5.0",
+    "@vitejs/plugin-vue": "^5.0.0",
     "vitest": "^1.2.1",
     "@vitejs/plugin-vue-jsx": "^3.1.0",
     "@vue/test-utils": "^2.4.4"
