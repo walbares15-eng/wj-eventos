@@ -1,0 +1,64 @@
+{
+  "name": "event-ticketing-app",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext .vue,.js,.ts",
+    "format": "prettier --write src/",
+    "cap:add": "capacitor add",
+    "cap:copy": "capacitor copy",
+    "cap:sync": "capacitor sync",
+    "cap:open": "capacitor open android"
+  },
+  "dependencies": {
+    "vue": "^3.3.13",
+    "vue-router": "^4.2.5",
+    "pinia": "^2.1.7",
+    "@vueuse/core": "^10.7.1",
+    "date-fns": "^2.30.0",
+    "lucide-vue-next": "^0.292.0",
+    "qrcode": "^1.5.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/cli": "^5.5.1",
+    "@capacitor/core": "^5.5.1",
+    "@types/node": "^20.10.5",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.19.2",
+    "postcss": "^8.4.32",
+    "prettier": "^3.2.4",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vike": "^0.4.144",
+    "vite": "^5.0.10",
+    "vite-plugin-vue": "^4.5.0",
+    "vitest": "^1.2.1",
+    "@vitejs/plugin-vue-jsx": "^3.1.0",
+    "@vue/test-utils": "^2.4.4"
+  },
+  "author": "Wanderley",
+  "description": "Sistema completo de venda de fichas para eventos com maquininha de cartão e impressão de recibos",
+  "license": "MIT",
+  "keywords": ["evento", "fichas", "venda", "pdv", "maquininha", "impressão", "offline", "sync"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seuusuario/event-ticketing-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seuusuario/event-ticketing-app/issues"
+},
+"funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/wanderley"
+  }
+}

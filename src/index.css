@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom utilities */
+@layer utilities {
+  .tap-highlight-color {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .printer-friendly {
+    break-inside: avoid;
+  }
+  
+  .receipt-print {
+    page-break-inside: avoid;
+    page-break-after: always;
+  }
+}
+
+/* Mobile specific optimizations */
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  
+  body {
+    @apply antialiased;
+  }
+  
+  #app {
+    @apply min-h-screen bg-gray-50;
+  }
+}

@@ -1,0 +1,114 @@
+Você é um engenheiro full-stack sênior. Construa DO ZERO um app completo de
+VENDA DE FICHAS PARA EVENTOS, com impressão das fichas na minha maquininha de
+cartão e uma página de relatório de vendas. Trabalhe de forma autônoma: tome
+as decisões técnicas, só pergunte se algo realmente bloquear. Responda e
+comente o código em português do Brasil.
+
+## CONTEXTO
+- Uso em eventos (festas, quermesses, feiras). O operador vende fichas de
+  produtos (ex.: cerveja, refrigerante, espetinho, água) no caixa.
+- A cada venda, o app imprime uma ficha para cada unidade vendida. O cliente
+  entrega a ficha no balcão e retira o produto.
+- Maquininha: [MODELO, ex.: Moderninha Smart / Stone / Cielo LIO / GetNet /
+  Mercado Pago Point / SumUp]. Ela tem impressora térmica [58mm ou 80mm].
+- Internet no evento é instável. O app precisa funcionar OFFLINE e sincronizar
+  depois.
+- Posso comprar um domínio se for necessário: [SEU-DOMINIO.com.br, ou
+  "sugira um"].
+
+## PASSO 0 – PESQUISA (faça antes de codar)
+1. Pesquise como imprimir na impressora embutida deste modelo de maquininha.
+   Verifique se existe SDK/API oficial, programa de desenvolvedor, loja de
+   apps ou intent de impressão para Android.
+2. Se a impressora da maquininha NÃO for acessível por app de terceiros,
+   implemente a melhor alternativa, nesta ordem:
+   a) PWA aberto no navegador da maquininha, imprimindo com window.print()
+      e CSS @page para papel de bobina (58mm ou 80mm);
+   b) integração com app de impressão (ex.: RawBT) via intent/URL scheme;
+   c) impressora térmica Bluetooth/USB externa (ESC/POS) via Web Bluetooth
+      ou Web Serial.
+3. Escreva em PRINTING.md o que descobriu, qual caminho escolheu e por quê,
+   com o passo a passo de instalação na maquininha.
+
+## STACK SUGERIDA (pode trocar se justificar)
+- Frontend: PWA (React + Vite + TypeScript + Tailwind) instalável, com Service
+  Worker e armazenamento offline (IndexedDB).
+- Backend: Supabase (Postgres + Auth + RLS) OU Node + SQLite, o que for mais
+  simples de hospedar. Fila de sincronização offline → online com resolução de
+  conflitos.
+- Hospedagem: Vercel, Netlify ou Cloudflare Pages, com HTTPS. Se o domínio for
+  necessário, explique como configurar o DNS.
+
+## FUNCIONALIDADES
+
+### 1. Tela de Caixa (PDV) – otimizada para tela pequena da maquininha
+- Botões grandes, um por produto, com nome, preço e botão +/–.
+- Carrinho com total em tempo real.
+- Seleção da forma de pagamento: Dinheiro, PIX, Débito, Crédito, Cortesia.
+- Botão "FINALIZAR E IMPRIMIR".
+- Cada unidade vendida gera 1 ficha impressa contendo: nome do evento, nome do
+  produto, número sequencial único da ficha, data/hora e um QR Code ou código
+  de barras com ID único (para evitar fraude e reuso).
+- Opção "reimprimir última venda" e "reimprimir ficha por número" (exigindo
+  PIN de supervisor).
+- Opção de estorno/cancelamento de venda (com PIN e registro de motivo).
+
+### 2. Tela de Resgate (opcional, mas implemente)
+- O balcão escaneia o QR da ficha pela câmera. O app marca como "resgatada" e
+  bloqueia reuso, mostrando alerta se já foi usada.
+
+### 3. Painel Admin (protegido por login)
+- CRUD de Eventos (nome, data, local, status ativo/encerrado).
+- CRUD de Produtos por evento (nome, preço, cor do botão, ativo/inativo,
+  estoque opcional com alerta de baixo estoque).
+- CRUD de Operadores/Caixas (cada um com PIN) para saber quem vendeu o quê.
+- Configuração de impressão: largura do papel, cabeçalho/rodapé da ficha,
+  logo opcional, tamanho da fonte.
+
+### 4. Página de Relatório de Vendas (a mais importante)
+Filtros: evento, período (data/hora), operador, produto, forma de pagamento.
+Mostrar:
+- Cards de resumo: total vendido (R$), nº de fichas, ticket médio, nº de vendas.
+- Tabela "Vendas por PRODUTO": produto, quantidade, valor total, % do total.
+- Tabela "Vendas por FORMA DE PAGAMENTO": dinheiro, PIX, débito, crédito,
+  cortesia, com valor e %.
+- Tabela cruzada PRODUTO × FORMA DE PAGAMENTO.
+- Vendas por EVENTO (comparativo entre eventos).
+- Vendas por OPERADOR.
+- Gráfico de vendas por hora, para ver o pico do evento.
+- Fichas emitidas × fichas resgatadas (sobra de fichas).
+- Fechamento de caixa por operador: valor esperado em dinheiro vs. informado,
+  com a diferença.
+- Exportar para CSV/Excel e PDF, e botão "imprimir relatório" em formato de
+  bobina.
+
+## REQUISITOS NÃO FUNCIONAIS
+- Funcionar 100% offline para vender e imprimir; sincronizar ao voltar a
+  internet, sem duplicar vendas (use IDs UUID gerados no cliente).
+- Interface em português, valores em R$ com formato brasileiro, fuso
+  America/Sao_Paulo.
+- Rápido: uma venda completa em no máximo 3 toques.
+- Segurança: autenticação, RLS ou equivalente, PINs com hash, log de auditoria
+  de estornos e reimpressões.
+- Código limpo, tipado, com testes para: cálculo de totais, geração do número
+  da ficha e relatórios.
+- Responsivo: funcionar na maquininha (tela pequena), no celular e no desktop
+  (painel e relatório).
+
+## ENTREGÁVEIS
+1. Projeto completo, rodando com `npm install && npm run dev`.
+2. Seed com dados de exemplo (1 evento, 6 produtos, 30 vendas fictícias) para
+   eu testar o relatório.
+3. README.md com: como rodar, variáveis de ambiente, deploy passo a passo e
+   configuração do domínio (se necessário).
+4. PRINTING.md com a instalação e a configuração da impressão na maquininha.
+5. Ao final, um checklist de teste para eu fazer antes do evento (impressão,
+   offline, sincronização, estorno, fechamento).
+
+## COMO TRABALHAR
+- Primeiro mostre o plano de arquitetura em tópicos curtos e siga em frente
+  sem esperar aprovação.
+- Entregue em etapas: (1) pesquisa de impressão, (2) banco e modelos,
+  (3) PDV + impressão, (4) admin, (5) relatório, (6) offline/sync, (7) testes
+  e documentação.
+- Ao terminar cada etapa, rode o projeto e confirme que não há erros.
