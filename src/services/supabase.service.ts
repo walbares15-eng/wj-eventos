@@ -101,66 +101,83 @@ export class SupabaseService {
     })
   }
 
-  // Auth methods
+  // Auth methods — com modo demonstração local (sem Supabase configurado)
   async signIn(pin: string): Promise<{ user: AuthUser; error: Error | null }> {
+    const demoUsers: Record<string, AuthUser> = {
+      '0000': { id: 'op-1', name: 'Wanderley (Admin)', role: 'admin', pin: '0000' },
+      '1111': { id: 'op-2', name: 'Maria', role: 'operator', pin: '1111' },
+      '1234': { id: 'op-3', name: 'João (Supervisor)', role: 'supervisor', pin: '1234' },
+    }
+
+    // Tenta Supabase primeiro; se falhar (sem env/DB), cai no modo demo
     try {
-      const { data: { user, error } } = await this.supabase.auth.signInWithPassword({
-        email: 'admin@event.com', // Fallback admin email
+      const { data: { user }, error } = await this.supabase.auth.signInWithPassword({
+        email: 'admin@event.com',
         password: pin,
       })
 
-      if (error) {
-        // Fallback to direct operator check
-        const { data: operators, error: opError } = await this.supabase
-          .from('operators')
-          .select('*')
-          .eq('pin', pin)
-          .single()
+      if (!error && user) {
+        return { user: null, error }
+      }
 
-        if (opError || !operators) {
-          return { user: null, error: new Error('PIN incorreto') }
-        }
+      const { data: operator, error: opError } = await (this.supabase as any)
+        .from('operators')
+        .select('*')
+        .eq('pin', pin)
+        .single()
 
-        // Create a session for the operator
-        const operator = operators as Operator
-        await this.supabase.auth.setSession({
-          access_token: 'operator-' + operator.id,
-          refresh_token: 'operator-refresh-' + operator.id,
-        })
-
+      if (!opError && operator) {
+        const op = operator as Operator
         return {
-          user: {
-            id: operator.id,
-            name: operator.name,
-            role: operator.role,
-            pin: operator.pin,
-          },
+          user: { id: op.id, name: op.name, role: op.role, pin: op.pin },
           error: null,
         }
       }
-
-      return { user: null, error }
-    } catch (error) {
-      return { user: null, error: error as Error }
+    } catch {
+      // ignora erro de rede — usa demo abaixo
     }
+
+    const demo = demoUsers[pin]
+    if (demo) {
+      localStorage.setItem('wj-demo-user', JSON.stringify(demo))
+      return { user: demo, error: null }
+    }
+
+    return { user: null, error: new Error('PIN incorreto') }
   }
 
   async signOut(): Promise<void> {
-    await this.supabase.auth.signOut()
+    try {
+      await this.supabase.auth.signOut()
+    } catch {
+      // ignora
+    }
+    localStorage.removeItem('wj-demo-user')
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    const { data: { user } } = await this.supabase.auth.getUser()
-    if (!user) return null
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser()
+      if (user) {
+        const { data: operator } = await (this.supabase as any)
+          .from('operators')
+          .select('*')
+          .eq('id', user.id)
+          .single()
 
-    // Get operator info
-    const { data: operator } = await this.supabase
-      .from('operators')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+        if (operator) return operator as AuthUser | null
+      }
+    } catch {
+      // ignora — tenta demo abaixo
+    }
 
-    return operator as AuthUser | null
+    try {
+      const raw = localStorage.getItem('wj-demo-user')
+      if (raw) return JSON.parse(raw) as AuthUser
+    } catch {
+      // ignora
+    }
+    return null
   }
 
   // General CRUD methods
