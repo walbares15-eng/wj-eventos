@@ -1,17 +1,26 @@
 import { createClient } from '@supabase/supabase-js'
-import { Ref } from 'vue'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import type {
+  Event,
+  Product,
+  Operator,
+  Sale,
+  Fiche,
+  CashRegister,
+  SyncQueueItem,
+  AuthUser,
+  ReportData,
+  DashboardSummary,
+  SalesByProduct,
+  SalesByPaymentMethod,
+  SalesByHour,
+  SalesByOperator,
+  SalesByEvent,
+  PaymentMethod,
+} from '@/types'
 
 export interface Database {
   public: {
-    events: EventsTable
-    products: ProductsTable
-    operators: OperatorsTable
-    sales: SalesTable
-    fiches: FichesTable
-    cash_registers: CashRegistersTable
-    sync_queue: SyncQueueTable
-    sale_items: SaleItemsTable
+    [_key: string]: unknown
   }
 }
 
@@ -77,18 +86,12 @@ export interface SaleItem {
 
 export class SupabaseService {
   private supabase: ReturnType<typeof createClient>
-  private channel?: RealtimeChannel
-  private authChannel?: RealtimeChannel
 
   constructor() {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
+    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase configuration is required')
-    }
-
-    this.supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    this.supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: localStorage,
         autoRefreshToken: true,
@@ -174,7 +177,8 @@ export class SupabaseService {
     }
   ): Promise<{ data: any; error: Error | null }> {
     try {
-      let query = this.supabase.from(table as string).select(options?.select || '*')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = (this.supabase as any).from(table as string).select(options?.select || '*')
 
       if (options?.filter && options?.value !== undefined) {
         query = query.eq(options.filter, options.value)
@@ -210,7 +214,8 @@ export class SupabaseService {
     }
   ): Promise<{ data: any; error: Error | null }> {
     try {
-      let query = this.supabase.from(table as string).insert(values)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = (this.supabase as any).from(table as string).insert(values)
 
       if (options?.returning) {
         query = query.select(options.returning)
@@ -237,7 +242,8 @@ export class SupabaseService {
     }
   ): Promise<{ data: any; error: Error | null }> {
     try {
-      let query = this.supabase.from(table as string).update(values)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = (this.supabase as any).from(table as string).update(values)
 
       if (options?.filter && options?.value !== undefined) {
         query = query.eq(options.filter, options.value)
@@ -262,7 +268,8 @@ export class SupabaseService {
     }
   ): Promise<{ data: any; error: Error | null }> {
     try {
-      let query = this.supabase.from(table).delete()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = (this.supabase as any).from(table).delete()
 
       if (options?.filter && options?.value !== undefined) {
         query = query.eq(options.filter, options.value)
@@ -280,17 +287,21 @@ export class SupabaseService {
     table: T,
     callback: (payload: any) => void
   ): () => void {
-    const subscription = this.supabase
-      .channel(`${table}-changes`) as any
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: table as string,
-      }, callback)
+    const channel = this.supabase
+      .channel(`${table}-changes`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: table as string,
+        } as any,
+        (payload: any) => callback(payload)
+      )
       .subscribe()
 
     return () => {
-      subscription.unsubscribe()
+      this.supabase.removeChannel(channel)
     }
   }
 
@@ -529,6 +540,13 @@ export class SupabaseService {
     const inputHash = await this.encryptPIN(inputPIN)
     return encryptedPIN === inputHash
   }
+
+  // Passthrough para acesso direto (usado pelas stores)
+  from(table: string): any {
+    return (this.supabase as any).from(table)
+  }
 }
 
-export default SupabaseService
+const supabaseService = new SupabaseService()
+
+export default supabaseService

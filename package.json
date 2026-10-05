@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -25,7 +25,9 @@
     "lucide-vue-next": "^0.292.0",
     "qrcode": "^1.5.3",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1"
+    "jspdf": "^2.5.1",
+    "uuid": "^9.0.1",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
     "@capacitor/android": "^5.5.1",

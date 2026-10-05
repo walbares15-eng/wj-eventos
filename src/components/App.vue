@@ -201,10 +201,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePDVStore } from '@/stores/pdv.store'
-import supabaseService from '@/services/supabase.service'
 
 // Stores
 const authStore = useAuthStore()
@@ -215,7 +213,16 @@ const loginPin = ref('')
 const loginError = ref(null)
 const isLoading = ref(false)
 const isLoadingLogin = ref(false)
-const isInitialized = ref(false)
+
+// Produtos (carregados do banco ou seed local)
+const products = ref([
+  { id: 'prod-1', name: 'Cerveja', price: 8, color: '#f59e0b', active: true, stock: 200 },
+  { id: 'prod-2', name: 'Refrigerante', price: 5, color: '#ef4444', active: true, stock: 150 },
+  { id: 'prod-3', name: 'Espetinho', price: 6, color: '#8b5cf6', active: true, stock: 100 },
+  { id: 'prod-4', name: 'Água', price: 3, color: '#3b82f6', active: true, stock: null },
+  { id: 'prod-5', name: 'Whisky', price: 15, color: '#78350f', active: true, stock: 50 },
+  { id: 'prod-6', name: 'Vinho', price: 12, color: '#7f1d1d', active: true, stock: 5 },
+])
 
 // Computed
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -311,6 +318,5 @@ function getProductIcon(productName) {
 // Lifecycle
 onMounted(async () => {
   await authStore.initialize()
-  isInitialized.value = true
 })
 </script>

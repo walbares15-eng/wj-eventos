@@ -5,7 +5,7 @@ const routes = [
   {
     path: '/',
     name: 'pdv',
-    component: () => import('@/components/PDV.vue'),
+    component: () => import('@/components/App.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -25,6 +25,10 @@ const routes = [
     name: 'reports',
     component: () => import('@/components/SalesReport.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
   },
 ]
 
