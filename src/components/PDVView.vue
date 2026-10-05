@@ -58,6 +58,12 @@
             {{ isOnline ? 'Online' : 'Offline' }}
           </span>
           <button
+            @click="reprintLast"
+            class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            🖨️ Reimprimir
+          </button>
+          <button
             @click="logout"
             class="text-red-600 hover:text-red-800 text-sm font-medium"
           >
@@ -210,6 +216,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePDVStore } from '@/stores/pdv.store'
 import { loadProducts } from '@/utils/products'
+import { printFiches } from '@/utils/ticket'
 
 // Stores
 const authStore = useAuthStore()
@@ -289,17 +296,42 @@ function setPaymentMethod(method) {
 
 async function processSale() {
   if (!canCheckout.value) return
-  
+
   const result = await pdvStore.processSale(
     authStore.user.id,
+    authStore.user.name,
     'evento-teste',
     products.value
   )
-  
+
   if (result.success) {
-    alert('Venda finalizada com sucesso! Ficha impressa.')
+    try {
+      await printFiches(result.fiches || [])
+    } catch (err) {
+      console.error('Falha na impressão:', err)
+      alert('Venda salva, mas a impressão falhou. Use "Reimprimir".')
+    }
   } else {
     alert('Erro ao processar venda: ' + result.error)
+  }
+}
+
+async function reprintLast() {
+  const batch = pdvStore.lastTicketBatch
+  if (!batch || batch.length === 0) {
+    alert('Nenhuma venda para reimprimir.')
+    return
+  }
+  const pin = prompt('PIN do supervisor:')
+  if (pin !== '1234') {
+    alert('PIN do supervisor incorreto.')
+    return
+  }
+  try {
+    await printFiches(batch)
+  } catch (err) {
+    console.error('Falha na reimpressão:', err)
+    alert('Falha na impressão.')
   }
 }
 

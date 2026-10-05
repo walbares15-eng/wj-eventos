@@ -1,0 +1,20 @@
+{
+  "name": "WJ Eventos — Venda de Fichas",
+  "short_name": "WJ Eventos",
+  "description": "Venda de fichas para eventos com impressão térmica. Funciona offline.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

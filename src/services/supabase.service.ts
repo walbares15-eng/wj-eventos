@@ -523,23 +523,46 @@ export class SupabaseService {
 
   // Utility methods
   async generateFicheNumber(eventId: string): Promise<string> {
-    const today = new Date().toISOString().split('T')[0]
-    const { data: event } = await this.supabase
-      .from('events')
-      .select('name')
-      .eq('id', eventId)
-      .single()
+    const now = new Date()
+    const yyyy = now.getFullYear()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
 
-    const todaySales = await this.supabase
-      .from('fiches')
-      .select('number')
-      .eq('event_id', eventId)
-      .like('number', `${today.split('-')[0]}-${today.split('-')[1]}-%`)
+    // Sem Supabase configurado → numeração sequencial local (por mês)
+    const envUrl = ((import.meta as any).env?.VITE_SUPABASE_URL as string) || ''
+    const hasRealDb = envUrl.startsWith('http') && !envUrl.includes('placeholder')
+    if (!hasRealDb) {
+      return this.nextLocalFicheNumber(yyyy, mm)
+    }
 
-    const count = (todaySales.data?.length || 0) + 1
-    const paddedCount = count.toString().padStart(3, '0')
+    try {
+      const { data: todaySales } = await (this.supabase as any)
+        .from('fiches')
+        .select('number')
+        .eq('event_id', eventId)
+        .like('number', `${yyyy}-${mm}-%`)
 
-    return `${today.split('-')[0]}-${today.split('-')[1]}-${paddedCount}`
+      const count = (todaySales?.length || 0) + 1
+      return `${yyyy}-${mm}-${String(count).padStart(3, '0')}`
+    } catch {
+      return this.nextLocalFicheNumber(yyyy, mm)
+    }
+  }
+
+  private nextLocalFicheNumber(yyyy: number, mm: string): string {
+    const key = `wj-fiche-seq-${yyyy}-${mm}`
+    let n = 0
+    try {
+      n = parseInt(localStorage.getItem(key) || '0', 10) || 0
+    } catch {
+      n = 0
+    }
+    n += 1
+    try {
+      localStorage.setItem(key, String(n))
+    } catch {
+      // ignora
+    }
+    return `${yyyy}-${mm}-${String(n).padStart(3, '0')}`
   }
 
   // Encryption utilities

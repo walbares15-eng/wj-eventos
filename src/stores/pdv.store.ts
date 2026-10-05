@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Product, PaymentMethod, Sale, Fiche } from '@/types'
+import type { PrintedFiche } from '@/utils/ticket'
 import { v4 as uuidv4 } from 'uuid'
 import supabaseService from '@/services/supabase.service'
 
@@ -10,6 +11,7 @@ export const usePDVStore = defineStore('pdv', () => {
   const paymentMethod = ref<PaymentMethod | null>(null)
   const isProcessing = ref(false)
   const lastPrintedFiche = ref<string | null>(null)
+  const lastTicketBatch = ref<PrintedFiche[]>([])
   const offlineQueue = ref<Array<{ type: string; data: any }>>([])
   const isSyncing = ref(false)
 
@@ -70,12 +72,22 @@ export const usePDVStore = defineStore('pdv', () => {
 
   async function processSale(
     operatorId: string,
+    operatorName: string,
     eventId: string,
     products: Product[]
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; fiches?: PrintedFiche[] }> {
     if (!canCheckout.value) {
       return { success: false, error: 'Carrinho vazio ou forma de pagamento não selecionada' }
     }
+
+    const paymentLabels: Record<string, string> = {
+      cash: 'Dinheiro',
+      pix: 'PIX',
+      debit: 'Débito',
+      credit: 'Crédito',
+      courtesy: 'Cortesia',
+    }
+    const paymentLabel = paymentLabels[paymentMethod.value as string] || '—'
 
     try {
       isProcessing.value = true
@@ -85,6 +97,7 @@ export const usePDVStore = defineStore('pdv', () => {
       const ficheNumbers: string[] = []
       const saleItems: any[] = []
       const fiches: any[] = []
+      const printedFiches: PrintedFiche[] = []
       const fichePromises: Promise<string>[] = []
 
       // Processar cada item do carrinho
@@ -105,6 +118,7 @@ export const usePDVStore = defineStore('pdv', () => {
         for (let i = 0; i < cartItem.quantity; i++) {
           const ficheNumber = await supabaseService.generateFicheNumber(eventId)
           ficheNumbers.push(ficheNumber)
+          const qrText = `WJEVENTOS:${ficheNumber}`
 
           // Gerar ficha para impressão
           fiches.push({
@@ -114,13 +128,17 @@ export const usePDVStore = defineStore('pdv', () => {
             product_id: cartItem.product.id,
             operator_id: operatorId,
             status: 'issued',
-            qr_data: JSON.stringify({
-              id: uuidv4(),
-              eventId,
-              productId: cartItem.product.id,
-              number: ficheNumber,
-              timestamp: new Date().toISOString()
-            }),
+            qr_data: qrText,
+          })
+
+          printedFiches.push({
+            number: ficheNumber,
+            productName: cartItem.product.name,
+            price: unitPrice,
+            paymentLabel,
+            operatorName,
+            date: new Date().toISOString(),
+            qrText,
           })
         }
       }
@@ -198,7 +216,11 @@ export const usePDVStore = defineStore('pdv', () => {
       // Limpar carrinho após processamento
       clearCart()
 
-      return { success: true }
+      // Guardar lote para reimpressão
+      lastTicketBatch.value = printedFiches
+      lastPrintedFiche.value = ficheNumbers[0] || null
+
+      return { success: true, fiches: printedFiches }
     } catch (err) {
       console.error('Erro ao processar venda:', err)
       return { success: false, error: (err as Error).message }
@@ -393,6 +415,7 @@ export const usePDVStore = defineStore('pdv', () => {
     paymentMethod,
     isProcessing,
     lastPrintedFiche,
+    lastTicketBatch,
     offlineQueue,
     isSyncing,
 

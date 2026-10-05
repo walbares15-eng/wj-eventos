@@ -21,5 +21,14 @@ window.addEventListener('online', () => {
   pdvStore.syncOfflineData()
 })
 
+// Service Worker: permite abrir o app OFFLINE na maquininha
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // SW opcional — app funciona online mesmo sem ele
+    })
+  })
+}
+
 // Montar aplicação
 app.mount('#app')

@@ -1,248 +1,84 @@
-# PRINTING.md - Research on Cash Register Printer Integration
+# Impressão e instalação na Moderninha Smart (PagBank)
 
-## Referência rápida: Como imprimir na impressora térmica embutida em maquininhas de cartão
+Aparelho identificado: **Moderninha Smart** — Android com impressora térmica de **58mm**,
+tela sensível ao toque, Wi-Fi/4G e "Loja de apps" (PagStore).
 
-### A MINIATURA DAS ALTERNATIVAS
+## Como o WJ Eventos funciona nela
 
-#### 1. PWA com impressão via navegador (RECOMENDADO)
+- O app é um **PWA** (site instalável): abre no navegador da maquininha e é
+  fixado na tela inicial com o ícone **WJ Eventos**.
+- A impressão usa o diálogo de impressão do Android (`window.print()` com
+  `@page size 58mm`), que envia direto para a **impressora embutida**.
+- Cada unidade vendida imprime **1 ficha** com: cabeçalho do evento, nome do
+  produto, preço, número sequencial, data/hora, forma de pagamento e **QR Code**.
+- O app abre **offline** (Service Worker + dados no navegador) e as vendas
+  ficam gravadas no aparelho.
 
-**Filosofia:** Usar o próprio navegador Android da maquininha para imprimir via `window.print()` com CSS @page.
+> Importante: a cobrança no cartão continua sendo feita no app **PagVendas**
+> da maquininha. No WJ Eventos você só registra a forma de pagamento
+> (Dinheiro, PIX, Débito, Crédito, Cortesia) para o relatório.
 
-**Por quê:** Funciona na maioria dos dispositivos Android, não precisa de SDK extra, funciona offline.
+## Passo a passo de instalação
 
-**Passos de implementação:**
+### 1. Preparar a maquininha
+1. Conecte o carregador (na foto a bateria está em 1% — carregue até 100%).
+2. Ligue o Wi-Fi: **Configurar → Wi-Fi** e conecte na rede do evento.
+3. Confirme que há **bobina de papel 58mm** instalada (teste: **PagVendas →
+   qualquer comprovante** para ver se imprime).
 
-```bash
-# 1. Instalar WebView à prova de falhas (sem fragmentação)
-npm install @capacitor/android @capacitor/app
+### 2. Abrir o WJ Eventos
+1. Abra o **navegador** da maquininha (Chrome ou "Internet"/"Navegador").
+   - Se não houver navegador visível, abra a **Loja de apps** e procure por
+     um navegador, ou instale via APK (veja "Plano B" abaixo).
+2. Digite o endereço: `https://wj-eventos-m1x6.vercel.app`
+3. Faça login com o PIN do caixa (`0000` = admin).
 
-# 2. Configurar PWA para instalação (React + Vite)
-# Em package.json:
-"start":{"build":"tsc && vite build","serve":"vite preview"}"
+### 3. Fixar na tela inicial (vira "app")
+1. Com o site aberto, toque no menu **⋮** do navegador.
+2. Toque em **"Adicionar à tela inicial"** (ou "Instalar aplicativo").
+3. Confirme. O ícone **WJ Eventos** aparece ao lado do PagVendas.
+4. Abra pelo ícone: o app roda em tela cheia, como aplicativo nativo.
 
-# 3. CSS para papel térmico de 58mm:
-css
-  @page {
-    size: 58mm auto;
-    margin: 0;
-  }
-  body {
-    margin: 0;
-    padding: 8mm;
-    font-family: 'Courier New', monospace;
-    font-size: 12pt;
-  }
-```
+### 4. Configurar antes do evento (no próprio app)
+1. Entre com PIN `0000` → **Admin** → aba **🖨️ Impressão**.
+2. Confirme: largura **58mm**, cabeçalho com o nome do evento, rodapé.
+3. Aba **🍺 Produtos**: confira nomes, preços e fotos.
+4. Aba **👤 Operadores**: crie um PIN para cada caixa.
 
-**Como imprimir:**
+### 5. Teste obrigatório antes do evento
+1. Faça uma **venda teste de 1 item** e confira a impressão da ficha.
+2. Desligue o Wi-Fi e faça outra venda (**modo offline**).
+3. Ligue o Wi-Fi de novo e confira se a venda aparece (sincronização).
+4. Teste o botão **🖨️ Reimprimir** no topo do PDV (pede PIN `1234`).
 
-```javascript
-// Método principal de impressão (React + Capacitor)
-async function printFiche(ficheData) {
-  // Gerar HTML para a ficha
-  const ficheHTML = generateFicheHTML(ficheData);
-  
-  // Abrir em nova janela para impressão
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Imprimir Fiche</title>
-      <style>
-        @page { size: 58mm auto; margin: 0; }
-        body { margin: 0; padding: 8mm; font-family: monospace; }
-        .ticket { border: 1px dashed #000; padding: 10px; }
-      </style>
-    </head>
-    <body>
-      <div class="ticket">${ficheHTML}</div>
-    </body>
-    </html>
-  `);
-  
-  // Aguardar carregamento e imprimir
-  setTimeout(() => {
-    printWindow.print();
-    setTimeout(() => printWindow.close(), 2000);
-  }, 500);
-}
-```
+## Plano B — sem navegador na maquininha
 
-**Vantagens:**
-- ✅ Funciona em qualquer maquininha com navegador Android
-- ✅ Sem necessidade de SDK extra
-- ✅ Funciona offline (só precisa do navegador funcionando)
-- ✅ Controle total sobre o layout com CSS
-- ✅ Suporta QR code, logos, fonte customizada
+Se a sua Moderninha Smart não tiver navegador acessível:
 
-**Desvantagens:**
-- ⚠️ Menos rápido que SDK nativo
-- ⚠️ Pode ter jitter de impressão ocasional
+1. **Opção A — Loja de apps:** procure "Chrome" ou "Navegador" na
+   **Loja de apps** da maquininha e instale. Depois siga o passo 2 acima.
+2. **Opção B — APK do Chrome via USB:** baixe o APK do Chrome no computador,
+   copie para um pendrive/USB-OTG, abra o gerenciador de arquivos da
+   maquininha, toque no APK e instale. Depois siga o passo 2 acima.
+3. **Opção C — impressora externa:** use qualquer celular/tablet com o app
+   aberto + impressora térmica Bluetooth 58mm (o diálogo de impressão do
+   Android lista impressoras Bluetooth pareadas).
 
-#### 2. Intent do Android (se app de impressão oficial)
+## Problemas comuns
 
-**Se o fabricante tem SDK:**
+| Sintoma | Causa provável | Solução |
+|---|---|---|
+| Diálogo de impressão não aparece | WebView sem serviço de impressão | Use o Chrome (Opção A/B) em vez do navegador embutido |
+| Imprime em branco / cortado | Largura errada | Admin → Impressão → **58mm** |
+| Ficha sem QR Code | Falha ao gerar QR | Verifique se o item tem nome; o QR usa o número da ficha |
+| App não abre offline | Primeira visita sem internet | Abra o app 1x com internet para o Service Worker instalar |
+| PIN não entra | Teclado da maquininha | Toque no campo PIN para abrir o teclado numérico |
 
-```bash
-// Exemplo: Stone tem Stone SDK
-implementation 'com.stone.pos.sdk:printer:1.0.0'
+## Checklist de bolso (dia do evento)
 
-// Uso:
-import com.stone.pos.sdk.interfaces.*;
-import com.stone.pos.sdk.models.*;
-
-public void printTicket(PrintData printData) {
-    PrinterManager printer = PrinterManager.getInstance();
-    printer.printTicket(printData);
-}
-```
-
-**Exemplo de intent (alternativo):**
-
-```java
-Intent printIntent = new Intent("com.stone.action.PRINT");
-printIntent.putExtra("paper_width", 58); // mm
-printIntent.putExtra("content", htmlContent);
-startActivity(printIntent);
-```
-
-#### 3. Impressora externa Bluetooth/USB ESC/POS
-
-**Para quando a impressora embutida é insuficiente:**
-
-```javascript
-import { SerialPort } from 'react-serialport';
-import { writeAsync } from '@capacitor-community/serial-port';
-
-// ESC/POS para 58mm
-const ESC_POS_58 = '\x1B\x69\x01'; // Inicialização
-const PRINT_CMD = '\x1B\x6A'; // Corte parcial
-
-async function printExternal(posPrinter) {
-  const cmd = ESC_POS_58 + ticketHTML + PRINT_CMD;
-  await writeAsync(posPrinter.device, cmd);
-}
-```
-
-## ESCOLHA FINAL: PWA
-
-**Motivo:**
-- Maquininhas genéricas são Android sem distinções técnicas importantes
-- Funciona com Moderninha Smart, Stone, Cielo LIO, GetNet, Mercado Pago Point, SumUp
-- Futuro-proof: não depende de SDK que pode se tornar obsoleto
-- Funciona mesmo sem internet (offline)
-
-**Implementação:**
-
-```bash
-# 1. Capacitor para ponte JavaScript/Nativo
-capacitor init
-npm install @capacitor/app @capacitor/haptic
-
-# 2. Service Worker para PWA
-capacitor add service-worker
-
-# 3. Configurar ícone de instalação (manifest.webmanifest)
-```
-
-**Problemas comuns e soluções:**
-
-1. **Impressão não funciona:**
-   ```javascript
-   // Aguardar carregamento do navegador antes de imprimir
-   function safePrint() {
-     if (document.readyState === 'complete') {
-       window.print();
-     } else {
-       setTimeout(safePrint, 100);
-     }
-   }
-   ```
-
-2. **Layout errado (largura do papel):**
-   ```css
-   /* Testar 58mm vs 80mm com:
-   @page { size: 58mm auto; }  // 58mm
-   @page { size: 80mm auto; }  // 80mm
-   */
-   ```
-
-3. **Impressora não encontrada:**
-   ```javascript
-   // Detectar impressora disponível
-   async function detectPrinters() {
-     const printers = await SerialPort.list();
-     return printers.filter(p => p.vendorId === 'YOUR_VENDOR_ID');
-   }
-   ```
-
-## INSTALAÇÃO E TESTE NA MAQUININHA
-
-### Para Moderninha Smart (Stone):
-
-```bash
-# 1. Desbloquear desenvolvedor (se necessário)
-Settings > Developer Options > USB Debugging
-
-# 2. Instalar Capacitor (React + Vite)
-npm install -g @capacitor/cli
-capacitor init
-
-# 3. Instalar na maquininha (via USB debug):
-npm run build
-capacitor copy android
-capacitor sync android
-
-# 4. Instalar no dispositivo:
-acp capacitor install android
-
-# 5. Permitir instalação de apps desconhecidos:
-Settings > Security > Install unknown apps
-```
-
-### Teste de Impressão:
-
-```javascript
-// Em desenvolvimento (src/components/PrintTest.tsx)
-const PrintTest = () => {
-  const printTest = async () => {
-    const testFiche = {
-      numero: 'TEST-001',
-      evento: 'Teste Impressão',
-      produto: 'Cerveja',
-      preco: 5.00,
-      data: new Date().toLocaleString()
-    };
-    await printFiche(testFiche);
-    console.log('Impressão solicitada');
-  };
-
-  return <button onClick={printTest}>Testar Impressão</button>;
-};
-```
-
-## IMPRESSÃO COMERCIAL VIÁVEL
-
-✅ **RECOMENDADO:** PWA com CSS @page
-
-**Por quê:**
-- Funciona hoje, instantaneamente, em qualquer maquininha
-- Sem necessidade de SDK extra, sem tempo de desenvolvimento extra
-- Controle total sobre layout, fonte, QR code
-- Funciona offline (importante para eventos)
-- Base para evoluir para SDK nativo quando necessário
-
-**Próximos passos:**
-
-1. **Implementar PWA**: Instalar Capacitor, Service Worker, ícone de instalação
-2. **Implementar impressão**: `window.print()` com CSS @page para 58mm/80mm
-3. **Testar na maquininha**: Instalação real + impressão de fiche de teste
-4. **Otimizar**: Cache, performance, fallback para impressora externa se necessário
-
-**Tempo de implementação:** 2-3 dias (incluindo testes)
-**Custo:** $0 (apenas o time do desenvolvedor)
-
----
-
-*Esta pesquisa assumiu que nenhuma das maquininhas tem SDK de impressão nativo, o que é um pressuposto seguro. Se algum fabricante tiver SDK melhor no futuro, podemos migrar facilmente.*
+- [ ] Bateria 100% + carregador reserva
+- [ ] Bobinas 58mm sobrando (leve o dobro)
+- [ ] 1 venda teste impressa OK
+- [ ] Teste offline feito
+- [ ] PINs dos caixas anotados
+- [ ] Celular reserva com o app logado

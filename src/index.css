@@ -32,12 +32,44 @@
   html {
     font-size: 16px;
   }
-  
+
   body {
     @apply antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
-  
+
   #app {
     @apply min-h-screen bg-gray-50;
+  }
+}
+
+/* Área de impressão das fichas (bobina térmica) */
+#wj-print-area {
+  display: none;
+}
+
+@media print {
+  #app {
+    display: none !important;
+  }
+
+  #wj-print-area {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .wj-ticket {
+    font-family: 'Courier New', monospace;
+    color: #000;
+    background: #fff;
+    page-break-inside: avoid;
+    page-break-after: always;
+    margin: 0;
+    padding: 2mm;
+  }
+
+  .wj-ticket:last-child {
+    page-break-after: auto;
   }
 }
