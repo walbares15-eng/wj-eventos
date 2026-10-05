@@ -5,8 +5,7 @@ const routes = [
   {
     path: '/',
     name: 'pdv',
-    component: () => import('@/components/App.vue'),
-    meta: { requiresAuth: true },
+    component: () => import('@/components/PDVView.vue'),
   },
   {
     path: '/login',
