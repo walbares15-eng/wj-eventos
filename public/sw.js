@@ -1,8 +1,8 @@
 // Service Worker do WJ Eventos — deixa o app abrir OFFLINE na maquininha.
-// Estratégia: cache-first para arquivos do próprio app, network-first
-// com fallback para index.html nas navegações.
+// Navegações: network-first (sempre tenta a versão nova, cai no cache offline).
+// Arquivos estáticos: cache-first.
 
-const CACHE = 'wj-eventos-v1'
+const CACHE = 'wj-eventos-v2'
 const CORE = ['/', '/index.html', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
@@ -31,6 +31,21 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
 
+  // Navegação (páginas): rede primeiro — evita tela branca de versão velha
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          const copy = res.clone()
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy))
+          return res
+        })
+        .catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
+  // Arquivos (JS/CSS/imagens): cache primeiro
   event.respondWith(
     caches.match(event.request).then(
       (hit) =>
