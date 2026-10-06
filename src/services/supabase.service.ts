@@ -105,7 +105,10 @@ export class SupabaseService {
   async signIn(pin: string): Promise<{ user: AuthUser; error: Error | null }> {
     const demoUsers: Record<string, AuthUser> = {
       '0000': { id: 'op-1', name: 'Wanderley (Admin)', role: 'admin', pin: '0000' },
-      '1111': { id: 'op-2', name: 'Maria', role: 'operator', pin: '1111' },
+      '1111': { id: 'op-2', name: 'Caixa 1', role: 'operator', pin: '1111' },
+      '2222': { id: 'op-4', name: 'Caixa 2', role: 'operator', pin: '2222' },
+      '3333': { id: 'op-5', name: 'Caixa 3', role: 'operator', pin: '3333' },
+      '4444': { id: 'op-6', name: 'Caixa 4', role: 'operator', pin: '4444' },
       '1234': { id: 'op-3', name: 'João (Supervisor)', role: 'supervisor', pin: '1234' },
     }
 
