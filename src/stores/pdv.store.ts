@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Product, PaymentMethod, Sale, Fiche } from '@/types'
 import type { PrintedFiche } from '@/utils/ticket'
+import { hasSharedDb } from '@/utils/products'
 import { v4 as uuidv4 } from 'uuid'
 import supabaseService from '@/services/supabase.service'
 
@@ -155,36 +156,9 @@ export const usePDVStore = defineStore('pdv', () => {
         created_at: new Date().toISOString(),
       }
 
-      // Se online, salvar no Supabase
-      if (navigator.onLine) {
-        const { error: saleError } = await supabaseService
-          .from('sales')
-          .insert(saleData)
-
-        if (saleError) throw saleError
-
-        // Salvar itens
-        if (saleItems.length > 0) {
-          const { error: itemsError } = await supabaseService
-            .from('sale_items')
-            .insert(saleItems)
-
-          if (itemsError) throw itemsError
-        }
-
-        // Salvar fichas
-        if (fiches.length > 0) {
-          const { error: fichesError } = await supabaseService
-            .from('fiches')
-            .insert(fiches)
-
-          if (fichesError) throw fichesError
-        }
-
-        // Atualizar última ficha impressa
-        lastPrintedFiche.value = ficheNumbers[0] || null
-      } else {
-        // Modo offline: adicionar à fila
+      // Tenta salvar no banco; se falhar (offline ou erro), guarda na
+      // fila local do aparelho e sincroniza quando a internet voltar
+      const queueOffline = async () => {
         await Promise.all([
           supabaseService.addToSyncQueue({
             id: uuidv4(),
@@ -209,8 +183,41 @@ export const usePDVStore = defineStore('pdv', () => {
             data: { fiches },
             attempts: 0,
             lastAttempt: null,
-          })
+          }),
         ])
+      }
+
+      if (navigator.onLine) {
+        try {
+          const { error: saleError } = await supabaseService
+            .from('sales')
+            .insert(saleData)
+
+          if (saleError) throw saleError
+
+          // Salvar itens
+          if (saleItems.length > 0) {
+            const { error: itemsError } = await supabaseService
+              .from('sale_items')
+              .insert(saleItems)
+
+            if (itemsError) throw itemsError
+          }
+
+          // Salvar fichas
+          if (fiches.length > 0) {
+            const { error: fichesError } = await supabaseService
+              .from('fiches')
+              .insert(fiches)
+
+            if (fichesError) throw fichesError
+          }
+        } catch {
+          await queueOffline()
+        }
+      } else {
+        // Modo offline: adicionar à fila local
+        await queueOffline()
       }
 
       // Limpar carrinho após processamento
@@ -347,6 +354,7 @@ export const usePDVStore = defineStore('pdv', () => {
   // Sync management
   async function syncOfflineData() {
     if (isSyncing.value || !navigator.onLine) return
+    if (!hasSharedDb()) return
 
     try {
       isSyncing.value = true

@@ -215,7 +215,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePDVStore } from '@/stores/pdv.store'
-import { loadProducts } from '@/utils/products'
+import { loadProductsAsync, DEFAULT_EVENT_ID } from '@/utils/products'
 import { printFiches, shouldAutoPrint } from '@/utils/ticket'
 
 // Stores
@@ -300,7 +300,7 @@ async function processSale() {
   const result = await pdvStore.processSale(
     authStore.user.id,
     authStore.user.name,
-    'evento-teste',
+    DEFAULT_EVENT_ID,
     products.value
   )
 
@@ -354,6 +354,6 @@ function getProductIcon(productName) {
 // Lifecycle
 onMounted(async () => {
   await authStore.initialize()
-  products.value = loadProducts()
+  products.value = await loadProductsAsync()
 })
 </script>

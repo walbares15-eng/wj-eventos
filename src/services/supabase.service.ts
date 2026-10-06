@@ -322,21 +322,42 @@ export class SupabaseService {
     }
   }
 
+  // Fila offline LOCAL (navegador do aparelho) — as vendas sem internet
+  // ficam gravadas aqui e sobem quando a internet voltar.
+  private readLocalQueue(): SyncQueueItem[] {
+    try {
+      const raw = localStorage.getItem('wj-sync-queue')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed
+      }
+    } catch {
+      // ignora
+    }
+    return []
+  }
+
+  private writeLocalQueue(items: SyncQueueItem[]): void {
+    try {
+      localStorage.setItem('wj-sync-queue', JSON.stringify(items))
+    } catch {
+      // ignora
+    }
+  }
+
   // Offline queue management
   async addToSyncQueue(item: SyncQueueItem): Promise<{ data: any; error: Error | null }> {
     try {
-      const { data, error } = await this.insert('sync_queue', {
+      const queue = this.readLocalQueue()
+      queue.push({
         ...item,
-        lastAttempt: null,
         attempts: 0,
+        lastAttempt: null,
         createdAt: new Date().toISOString(),
-      })
-
-      if (!error) {
-        console.log('✅ Item adicionado à fila de sincronização:', item.id)
-      }
-
-      return { data, error }
+      } as SyncQueueItem)
+      this.writeLocalQueue(queue)
+      console.log('✅ Venda guardada para sincronizar:', item.id)
+      return { data: item, error: null }
     } catch (error) {
       return { data: null, error: error as Error }
     }
@@ -344,16 +365,10 @@ export class SupabaseService {
 
   async getPendingSyncItems(): Promise<{ data: any; error: Error | null }> {
     try {
-      const { data, error } = await this.select('sync_queue', {
-        filter: 'status',
-        value: 'pending',
-        select: '*',
-        orderBy: 'created_at',
-        ascending: true,
-        limit: 100,
-      })
-
-      return { data, error }
+      const pending = this.readLocalQueue().filter(
+        (i: any) => i.status !== 'synced' && (i.attempts || 0) < 10
+      )
+      return { data: pending, error: null }
     } catch (error) {
       return { data: null, error: error as Error }
     }
@@ -364,13 +379,14 @@ export class SupabaseService {
     updates: Partial<SyncQueueItem>
   ): Promise<{ data: any; error: Error | null }> {
     try {
-      const { data, error } = await this.update('sync_queue', updates, {
-        filter: 'id',
-        value: id,
-        returning: '*',
-      })
-
-      return { data, error }
+      let queue = this.readLocalQueue()
+      if ((updates as any).status === 'synced') {
+        queue = queue.filter((i: any) => i.id !== id)
+      } else {
+        queue = queue.map((i: any) => (i.id === id ? { ...i, ...updates } : i))
+      }
+      this.writeLocalQueue(queue)
+      return { data: updates, error: null }
     } catch (error) {
       return { data: null, error: error as Error }
     }
@@ -534,18 +550,10 @@ export class SupabaseService {
       return this.nextLocalFicheNumber(yyyy, mm)
     }
 
-    try {
-      const { data: todaySales } = await (this.supabase as any)
-        .from('fiches')
-        .select('number')
-        .eq('event_id', eventId)
-        .like('number', `${yyyy}-${mm}-%`)
-
-      const count = (todaySales?.length || 0) + 1
-      return `${yyyy}-${mm}-${String(count).padStart(3, '0')}`
-    } catch {
-      return this.nextLocalFicheNumber(yyyy, mm)
-    }
+    // Com banco: sufixo único por horário — 4 celulares vendendo juntos
+    // nunca repetem o número, com ou sem internet.
+    const suffix = Date.now().toString(36).toUpperCase().slice(-6)
+    return `${yyyy}-${mm}-${suffix}`
   }
 
   private nextLocalFicheNumber(yyyy: number, mm: string): string {

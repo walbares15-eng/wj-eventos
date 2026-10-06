@@ -352,6 +352,13 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { loadProducts, saveProducts, processImageFile } from '@/utils/products'
+import type { StoredProduct } from '@/utils/products'
+import {
+  loadProductsAsync,
+  createProductAsync,
+  updateProductAsync,
+  deleteProductAsync,
+} from '@/utils/products'
 
 const authStore = useAuthStore()
 const currentUser = authStore.user
@@ -404,7 +411,9 @@ function toggleEventStatus(event) {
 
 function toggleProductActive(product) {
   product.active = !product.active
-  saveProducts(products.value)
+  updateProductAsync({ ...product }).then((saved) => {
+    Object.assign(product, saved)
+  })
 }
 
 // ---- Formulário de produto (novo + edição), com foto ----
@@ -462,7 +471,7 @@ function removePhoto() {
   productForm.value.image = null
 }
 
-function saveProduct() {
+async function saveProduct() {
   const name = productForm.value.name.trim()
   const price = parseFloat(String(productForm.value.price).replace(',', '.'))
   if (!name) {
@@ -477,35 +486,30 @@ function saveProduct() {
     ? null
     : parseInt(productForm.value.stockText, 10)
 
-  if (editingProductId.value) {
-    const p = products.value.find((x) => x.id === editingProductId.value)
-    if (p) {
-      p.name = name
-      p.price = price
-      p.color = productForm.value.color
-      p.stock = isNaN(stock) ? null : stock
-      p.active = productForm.value.active
-      p.image = productForm.value.image
-    }
-  } else {
-    products.value.push({
-      id: 'prod-' + Date.now(),
-      name,
-      price,
-      color: productForm.value.color,
-      active: productForm.value.active,
-      stock: isNaN(stock) ? null : stock,
-      image: productForm.value.image,
-    })
+  const payload = {
+    name,
+    price,
+    color: productForm.value.color,
+    stock: isNaN(stock) ? null : stock,
+    active: productForm.value.active,
+    image: productForm.value.image,
   }
-  saveProducts(products.value)
+
+  if (editingProductId.value) {
+    const saved = await updateProductAsync({ id: editingProductId.value, ...payload })
+    const idx = products.value.findIndex((x) => x.id === editingProductId.value)
+    if (idx !== -1) products.value[idx] = saved
+  } else {
+    const created = await createProductAsync(payload)
+    products.value.push(created)
+  }
   showProductModal.value = false
 }
 
-function deleteProduct(product) {
+async function deleteProduct(product) {
   if (!confirm(`Excluir "${product.name}"?`)) return
+  await deleteProductAsync(product.id)
   products.value = products.value.filter((x) => x.id !== product.id)
-  saveProducts(products.value)
 }
 
 function openEventModal() {
@@ -546,8 +550,8 @@ function saveSettings() {
   alert('Configurações salvas!')
 }
 
-onMounted(() => {
-  products.value = loadProducts()
+onMounted(async () => {
+  products.value = await loadProductsAsync()
   const saved = localStorage.getItem('print-settings')
   if (saved) {
     printSettings.value = { ...printSettings.value, ...JSON.parse(saved) }

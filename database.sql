@@ -1,10 +1,11 @@
--- Database Schema for Venda de Fichas
+-- WJ Eventos — Schema Postgres (Supabase)
+-- Como aplicar: Supabase Dashboard → SQL Editor → New query → cole este
+-- arquivo inteiro → Run. Pode rodar de novo sem duplicar (idempotente).
 
--- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- Events
-create table events (
+-- Eventos
+create table if not exists events (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
   date date not null,
@@ -13,8 +14,8 @@ create table events (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Products
-create table products (
+-- Produtos (image = foto em base64, opcional)
+create table if not exists products (
   id uuid primary key default uuid_generate_v4(),
   event_id uuid references events(id) not null,
   name text not null,
@@ -22,11 +23,12 @@ create table products (
   color text default '#e5e7eb',
   active boolean default true,
   stock integer,
+  image text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Operators
-create table operators (
+-- Operadores (login por PIN)
+create table if not exists operators (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
   pin text not null,
@@ -35,8 +37,8 @@ create table operators (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Sales
-create table sales (
+-- Vendas
+create table if not exists sales (
   id uuid primary key default uuid_generate_v4(),
   event_id uuid references events(id) not null,
   operator_id uuid references operators(id) not null,
@@ -47,8 +49,8 @@ create table sales (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Sale Items
-create table sale_items (
+-- Itens da venda
+create table if not exists sale_items (
   id uuid primary key default uuid_generate_v4(),
   sale_id uuid references sales(id) not null,
   product_id uuid references products(id) not null,
@@ -57,8 +59,8 @@ create table sale_items (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Fiches
-create table fiches (
+-- Fichas
+create table if not exists fiches (
   id uuid primary key default uuid_generate_v4(),
   sale_id uuid references sales(id) not null,
   number text not null,
@@ -72,8 +74,8 @@ create table fiches (
   cancelled_at timestamp with time zone
 );
 
--- Cash Registers
-create table cash_registers (
+-- Caixas
+create table if not exists cash_registers (
   id uuid primary key default uuid_generate_v4(),
   operator_id uuid references operators(id) not null,
   event_id uuid references events(id) not null,
@@ -85,22 +87,48 @@ create table cash_registers (
   status text check (status in ('open', 'closed')) default 'open'
 );
 
--- Sync Queue (for offline support)
-create table sync_queue (
+-- Fila de sincronização (uso futuro; o app usa fila local no aparelho)
+create table if not exists sync_queue (
   id uuid primary key default uuid_generate_v4(),
-  type text not null, -- 'sale', 'fiche', 'cash_register'
-  action text not null, -- 'create', 'update'
+  type text not null,
+  action text not null,
   data jsonb not null,
   attempts integer default 0,
   last_attempt timestamp with time zone,
-  status text default 'pending', -- 'pending', 'synced', 'failed'
+  status text default 'pending',
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Seed data for testing
-insert into events (id, name, date, location) values ('evento-teste', 'Festa Junina 2026', '2026-06-12', 'Salão Comunitário');
-insert into products (event_id, name, price, color) values 
-('evento-teste', 'Cerveja', 8, '#f59e0b'),
-('evento-teste', 'Refrigerante', 5, '#ef4444'),
-('evento-teste', 'Espetinho', 6, '#8b5cf6');
-insert into operators (name, pin, role) values ('Wanderley', '0000', 'admin');
+-- Coluna de foto (para bancos criados com o schema antigo)
+alter table products add column if not exists image text;
+
+-- Evento padrão (UUID fixo usado pelo app)
+insert into events (id, name, date, location, status)
+values ('11111111-1111-1111-1111-111111111111', 'Meu Evento', '2026-12-31', 'Local do evento', 'active')
+on conflict (id) do nothing;
+
+-- Produtos iniciais (só se a tabela estiver vazia)
+insert into products (event_id, name, price, color, active, stock)
+select '11111111-1111-1111-1111-111111111111', name, price, color, true, stock
+from (values
+  ('Cerveja', 8, '#f59e0b', 200),
+  ('Refrigerante', 5, '#ef4444', 150),
+  ('Espetinho', 6, '#8b5cf6', 100),
+  ('Água', 3, '#3b82f6', null),
+  ('Whisky', 15, '#78350f', 50),
+  ('Vinho', 12, '#7f1d1d', 5)
+) as seed(name, price, color, stock)
+where not exists (select 1 from products limit 1);
+
+-- Operadores: 1 admin + 1 supervisor + 4 caixas (um PIN por celular)
+insert into operators (name, pin, role)
+select s.name, s.pin, s.role
+from (values
+  ('Wanderley', '0000', 'admin'),
+  ('Supervisor', '1234', 'supervisor'),
+  ('Caixa 1', '1111', 'operator'),
+  ('Caixa 2', '2222', 'operator'),
+  ('Caixa 3', '3333', 'operator'),
+  ('Caixa 4', '4444', 'operator')
+) as s(name, pin, role)
+where not exists (select 1 from operators o where o.pin = s.pin);

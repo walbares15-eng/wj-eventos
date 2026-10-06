@@ -1,6 +1,9 @@
-// Produtos compartilhados entre PDV e Admin, persistidos no navegador.
-// Quando o Supabase estiver configurado, esta camada pode ser trocada
-// pela leitura do banco sem mudar os componentes.
+// Produtos compartilhados entre PDV e Admin.
+// - SEM banco configurado: ficam salvos no navegador do aparelho.
+// - COM Supabase configurado: o Admin (PC) grava no banco e os celulares
+//   leem de lá; o navegador guarda cópia para funcionar offline.
+
+import supabaseService from '@/services/supabase.service'
 
 export interface StoredProduct {
   id: string
@@ -11,6 +14,9 @@ export interface StoredProduct {
   stock: number | null
   image: string | null
 }
+
+// Evento padrão (mesmo UUID do seed em database.sql)
+export const DEFAULT_EVENT_ID = '11111111-1111-1111-1111-111111111111'
 
 const KEY = 'wj-products'
 
@@ -42,6 +48,159 @@ export function saveProducts(list: StoredProduct[]): void {
   } catch {
     alert('Não foi possível salvar: armazenamento do navegador cheio. Use fotos menores.')
   }
+}
+
+export function isLocalId(id: string): boolean {
+  return id.startsWith('prod-')
+}
+
+// Há banco compartilhado configurado?
+export function hasSharedDb(): boolean {
+  try {
+    const url = ((import.meta as any).env?.VITE_SUPABASE_URL as string) || ''
+    return url.startsWith('http') && !url.includes('placeholder')
+  } catch {
+    return false
+  }
+}
+
+function rowToProduct(row: any): StoredProduct {
+  return {
+    id: String(row.id),
+    name: row.name,
+    price: Number(row.price),
+    color: row.color || '#10b981',
+    active: row.active !== false,
+    stock: row.stock ?? null,
+    image: row.image || null,
+  }
+}
+
+// Lê do banco (com cache local + migração da primeira vez)
+export async function loadProductsAsync(): Promise<StoredProduct[]> {
+  const local = loadProducts()
+  if (!hasSharedDb()) return local
+  try {
+    const { data, error } = await supabaseService.select('products', {
+      select: 'id,event_id,name,price,color,active,stock,image',
+      filter: 'event_id',
+      value: DEFAULT_EVENT_ID,
+      orderBy: 'name',
+      ascending: true,
+    })
+    if (error || !data) return local
+    let list = (data as any[]).map(rowToProduct)
+
+    // Banco vazio + aparelho com produtos: migra tudo para o banco
+    if (list.length === 0 && local.length > 0) {
+      for (const p of local) {
+        try {
+          await supabaseService.insert('products', {
+            event_id: DEFAULT_EVENT_ID,
+            name: p.name,
+            price: p.price,
+            color: p.color,
+            active: p.active,
+            stock: p.stock,
+            image: p.image,
+          })
+        } catch {
+          // ignora item com falha e segue
+        }
+      }
+      const retry = await supabaseService.select('products', {
+        select: 'id,event_id,name,price,color,active,stock,image',
+        filter: 'event_id',
+        value: DEFAULT_EVENT_ID,
+        orderBy: 'name',
+        ascending: true,
+      })
+      if (!retry.error && retry.data) list = (retry.data as any[]).map(rowToProduct)
+    }
+
+    if (list.length > 0) saveProducts(list)
+    return list.length > 0 ? list : local
+  } catch {
+    return local
+  }
+}
+
+export async function createProductAsync(
+  p: Omit<StoredProduct, 'id'>
+): Promise<StoredProduct> {
+  const localFallback: StoredProduct = { ...p, id: 'prod-' + Date.now() }
+  if (!hasSharedDb()) {
+    const list = loadProducts()
+    list.push(localFallback)
+    saveProducts(list)
+    return localFallback
+  }
+  try {
+    const { data, error } = await supabaseService.insert(
+      'products',
+      {
+        event_id: DEFAULT_EVENT_ID,
+        name: p.name,
+        price: p.price,
+        color: p.color,
+        active: p.active,
+        stock: p.stock,
+        image: p.image,
+      },
+      { returning: '*' }
+    )
+    if (error || !data) throw error || new Error('sem retorno do banco')
+    const row = Array.isArray(data) ? data[0] : data
+    const created = rowToProduct(row)
+    const list = loadProducts()
+    list.push(created)
+    saveProducts(list)
+    return created
+  } catch {
+    const list = loadProducts()
+    list.push(localFallback)
+    saveProducts(list)
+    return localFallback
+  }
+}
+
+export async function updateProductAsync(p: StoredProduct): Promise<StoredProduct> {
+  const persistLocal = () => {
+    const list = loadProducts().map((x) => (x.id === p.id ? p : x))
+    saveProducts(list)
+  }
+  if (hasSharedDb() && !isLocalId(p.id)) {
+    try {
+      const { error } = await supabaseService.update(
+        'products',
+        {
+          name: p.name,
+          price: p.price,
+          color: p.color,
+          active: p.active,
+          stock: p.stock,
+          image: p.image,
+        },
+        { filter: 'id', value: p.id }
+      )
+      if (error) throw error
+    } catch {
+      // mantém local mesmo se o banco falhar
+    }
+  }
+  persistLocal()
+  return p
+}
+
+export async function deleteProductAsync(id: string): Promise<void> {
+  if (hasSharedDb() && !isLocalId(id)) {
+    try {
+      await supabaseService.delete('products', { filter: 'id', value: id })
+    } catch {
+      // segue removendo local
+    }
+  }
+  saveProducts(loadProducts().filter((x) => x.id !== id))
 }
 
 // Lê um arquivo de imagem e devolve um JPEG redimensionado (base64),
