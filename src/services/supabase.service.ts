@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { findLocalOperatorByPin } from '@/utils/operators'
 import type {
   Event,
   Product,
@@ -146,10 +147,11 @@ export class SupabaseService {
       // ignora erro de rede — usa demo abaixo
     }
 
-    const demo = demoUsers[pin]
+    const demo = findLocalOperatorByPin(pin)
     if (demo) {
-      localStorage.setItem('wj-demo-user', JSON.stringify(demo))
-      return { user: demo, error: null }
+      const user = { id: demo.id, name: demo.name, role: demo.role, pin: demo.pin }
+      localStorage.setItem('wj-demo-user', JSON.stringify(user))
+      return { user: user as AuthUser, error: null }
     }
 
     return { user: null, error: new Error('PIN incorreto') }

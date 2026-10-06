@@ -270,6 +270,7 @@
               <th class="pb-2">PIN</th>
               <th class="pb-2">Função</th>
               <th class="pb-2">Status</th>
+              <th class="pb-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -285,9 +286,86 @@
                   {{ op.active ? 'Ativo' : 'Inativo' }}
                 </span>
               </td>
+              <td class="py-3 text-right whitespace-nowrap">
+                <button @click="editOperator(op)" class="text-blue-600 text-sm hover:underline mr-3">
+                  Editar
+                </button>
+                <button @click="toggleOperatorActive(op)" class="text-blue-600 text-sm hover:underline mr-3">
+                  {{ op.active ? 'Desativar' : 'Ativar' }}
+                </button>
+                <button @click="deleteOperator(op)" class="text-red-600 text-sm hover:underline">
+                  Excluir
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Modal de operador (nome + PIN) -->
+      <div
+        v-if="showOperatorModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        @click.self="closeOperatorModal"
+      >
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <h3 class="text-lg font-bold mb-4">
+            {{ editingOperatorId ? 'Editar operador' : 'Novo operador' }}
+          </h3>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+              <input
+                v-model="operatorForm.name"
+                class="w-full border rounded-lg px-3 py-2"
+                placeholder="Ex.: Caixa 5"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">PIN (4 números)</label>
+                <input
+                  v-model="operatorForm.pin"
+                  type="password"
+                  inputmode="numeric"
+                  maxlength="4"
+                  class="w-full border rounded-lg px-3 py-2 text-center text-xl tracking-widest"
+                  placeholder="••••"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Função</label>
+                <select v-model="operatorForm.role" class="w-full border rounded-lg px-3 py-2">
+                  <option value="operator">Caixa</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+              <input v-model="operatorForm.active" type="checkbox" class="w-4 h-4" />
+              Operador ativo
+            </label>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <button
+              @click="closeOperatorModal"
+              class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="saveOperator"
+              class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Settings Tab -->
@@ -358,6 +436,12 @@ import {
   updateProductAsync,
   deleteProductAsync,
 } from '@/utils/products'
+import {
+  loadOperatorsAsync,
+  createOperatorAsync,
+  updateOperatorAsync,
+  deleteOperatorAsync,
+} from '@/utils/operators'
 
 const authStore = useAuthStore()
 const currentUser = authStore.user
@@ -383,11 +467,7 @@ const events = ref([
 
 const products = ref(loadProducts())
 
-const operators = ref([
-  { id: 'op-1', name: 'Wanderley', pin: '0000', role: 'admin', active: true },
-  { id: 'op-2', name: 'Maria', pin: '1111', role: 'operator', active: true },
-  { id: 'op-3', name: 'João', pin: '1234', role: 'supervisor', active: true },
-])
+const operators = ref([])
 
 const printSettings = ref({
   paperWidth: 58,
@@ -526,22 +606,82 @@ function openEventModal() {
   })
 }
 
+// ---- Operadores (nome + PIN editáveis) ----
+const showOperatorModal = ref(false)
+const editingOperatorId = ref(null)
+const operatorForm = ref({ name: '', pin: '', role: 'operator', active: true })
+
 function openOperatorModal() {
-  const name = prompt('Nome do operador:')
-  if (!name) return
-  const pin = prompt('PIN (4 dígitos):')
-  if (!pin || !/^\d{4}$/.test(pin)) {
-    alert('PIN deve ter exatamente 4 dígitos')
+  editingOperatorId.value = null
+  operatorForm.value = { name: '', pin: '', role: 'operator', active: true }
+  showOperatorModal.value = true
+}
+
+function editOperator(op) {
+  editingOperatorId.value = op.id
+  operatorForm.value = { name: op.name, pin: op.pin, role: op.role, active: op.active }
+  showOperatorModal.value = true
+}
+
+function closeOperatorModal() {
+  showOperatorModal.value = false
+}
+
+function toggleOperatorActive(op) {
+  op.active = !op.active
+  updateOperatorAsync({ ...op }).then((saved) => {
+    Object.assign(op, saved)
+  })
+}
+
+async function saveOperator() {
+  const name = operatorForm.value.name.trim()
+  const pin = operatorForm.value.pin.replace(/\D/g, '').slice(0, 4)
+  if (!name) {
+    alert('Informe o nome.')
     return
   }
-  const role = prompt('Função (admin/operator/supervisor):', 'operator')
-  operators.value.push({
-    id: 'op-' + Date.now(),
-    name,
-    pin,
-    role: role || 'operator',
-    active: true,
-  })
+  if (!/^\d{4}$/.test(pin)) {
+    alert('O PIN deve ter exatamente 4 números.')
+    return
+  }
+  const dup = operators.value.find((x) => x.pin === pin && x.id !== editingOperatorId.value)
+  if (dup) {
+    alert(`Este PIN já está em uso por "${dup.name}". Escolha outro.`)
+    return
+  }
+
+  if (editingOperatorId.value) {
+    const saved = await updateOperatorAsync({
+      id: editingOperatorId.value,
+      name,
+      pin,
+      role: operatorForm.value.role,
+      active: operatorForm.value.active,
+    })
+    const idx = operators.value.findIndex((x) => x.id === editingOperatorId.value)
+    if (idx !== -1) operators.value[idx] = saved
+  } else {
+    const created = await createOperatorAsync({
+      name,
+      pin,
+      role: operatorForm.value.role,
+      active: operatorForm.value.active,
+    })
+    operators.value.push(created)
+  }
+  showOperatorModal.value = false
+}
+
+async function deleteOperator(op) {
+  const admins = operators.value.filter((x) => x.role === 'admin' && x.active && x.id !== op.id)
+  if (op.role === 'admin' && admins.length === 0) {
+    alert('Não é possível excluir o único administrador ativo.')
+    return
+  }
+  if (!confirm(`Excluir "${op.name}"?`)) return
+  await deleteOperatorAsync(op.id)
+  operators.value = operators.value.filter((x) => x.id !== op.id)
 }
 
 function saveSettings() {
@@ -551,6 +691,7 @@ function saveSettings() {
 
 onMounted(async () => {
   products.value = await loadProductsAsync()
+  operators.value = await loadOperatorsAsync()
   const saved = localStorage.getItem('print-settings')
   if (saved) {
     printSettings.value = { ...printSettings.value, ...JSON.parse(saved) }
