@@ -352,7 +352,6 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { loadProducts, saveProducts, processImageFile } from '@/utils/products'
-import type { StoredProduct } from '@/utils/products'
 import {
   loadProductsAsync,
   createProductAsync,
