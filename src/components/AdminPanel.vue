@@ -422,6 +422,39 @@
           </button>
         </div>
       </div>
+
+      <!-- Backup Tab -->
+      <div v-if="activeTab === 'backup'" class="bg-white rounded-lg shadow-md p-6 max-w-lg">
+        <h2 class="text-lg font-bold mb-2">Backup / Restaurar</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Copie produtos, fotos, operadores e configurações de um aparelho para os outros:
+          <strong>exporte no PC</strong> e <strong>importe em cada celular</strong>.
+        </p>
+        <div class="space-y-3">
+          <button
+            @click="exportBackup"
+            class="w-full bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700"
+          >
+            ⬇️ Exportar backup (baixa um arquivo)
+          </button>
+          <button
+            @click="backupInput && backupInput.click()"
+            class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700"
+          >
+            ⬆️ Importar backup (escolher arquivo)
+          </button>
+          <input
+            ref="backupInput"
+            type="file"
+            accept="application/json,.json"
+            class="hidden"
+            @change="importBackup"
+          />
+          <p class="text-xs text-gray-500">
+            A importação substitui os dados deste aparelho e recarrega a tela.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -452,6 +485,7 @@ const tabs = [
   { id: 'products', label: '🍺 Produtos' },
   { id: 'operators', label: '👤 Operadores' },
   { id: 'settings', label: '🖨️ Impressão' },
+  { id: 'backup', label: '💾 Backup' },
 ]
 
 // Dados locais (em produção viriam do Supabase)
@@ -687,6 +721,64 @@ async function deleteOperator(op) {
 function saveSettings() {
   localStorage.setItem('print-settings', JSON.stringify(printSettings.value))
   alert('Configurações salvas!')
+}
+
+// ---- Backup: exportar do PC e importar nos celulares ----
+const BACKUP_KEYS = ['wj-products', 'wj-operators', 'print-settings']
+const backupInput = ref(null)
+
+function exportBackup() {
+  const data = {}
+  for (const key of BACKUP_KEYS) {
+    try {
+      const raw = localStorage.getItem(key)
+      data[key] = raw ? JSON.parse(raw) : null
+    } catch {
+      data[key] = null
+    }
+  }
+  const backup = {
+    app: 'wj-eventos',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data,
+  }
+  const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const day = new Date().toISOString().split('T')[0]
+  a.href = url
+  a.download = `wj-eventos-backup-${day}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function importBackup(event) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const backup = JSON.parse(reader.result)
+      if (!backup || backup.app !== 'wj-eventos' || !backup.data) {
+        throw new Error('formato')
+      }
+      for (const key of BACKUP_KEYS) {
+        if (backup.data[key] !== undefined && backup.data[key] !== null) {
+          localStorage.setItem(key, JSON.stringify(backup.data[key]))
+        }
+      }
+      alert('Backup importado com sucesso! A tela vai recarregar.')
+      window.location.reload()
+    } catch {
+      alert('Arquivo inválido. Use um backup exportado pelo WJ Eventos.')
+    }
+  }
+  reader.onerror = () => alert('Falha ao ler o arquivo.')
+  reader.readAsText(file)
+  event.target.value = ''
 }
 
 onMounted(async () => {
