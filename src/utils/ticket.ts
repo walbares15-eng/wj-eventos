@@ -17,16 +17,20 @@ export interface PrintedFiche {
 interface PrintSettings {
   paperWidth: 58 | 80
   header: string
+  eventName: string
   footer: string
   fontSize: number
+  autoPrint: boolean
 }
 
 function getPrintSettings(): PrintSettings {
   const fallback: PrintSettings = {
     paperWidth: 58,
     header: 'WJ EVENTOS',
+    eventName: '',
     footer: 'Troque sua ficha no balcão',
     fontSize: 12,
+    autoPrint: true,
   }
   try {
     const raw = localStorage.getItem('print-settings')
@@ -35,6 +39,10 @@ function getPrintSettings(): PrintSettings {
     // ignora
   }
   return fallback
+}
+
+export function shouldAutoPrint(): boolean {
+  return getPrintSettings().autoPrint !== false
 }
 
 function brl(value: number): string {
@@ -68,7 +76,8 @@ export async function printFiches(fiches: PrintedFiche[]): Promise<void> {
       const qr = qrUrls[i]
       return `
       <div class="wj-ticket">
-        <div style="text-align:center;font-weight:bold;font-size:${fs + 2}pt;">${esc(settings.header)}</div>
+        <div style="text-align:center;font-weight:bold;font-size:${fs + 2}pt;">${esc(settings.header || 'WJ EVENTOS')}</div>
+        ${settings.eventName ? `<div style="text-align:center;font-weight:bold;font-size:${fs + 1}pt;">${esc(settings.eventName)}</div>` : ''}
         <div style="text-align:center;">- - - - - - - - - -</div>
         <div style="text-align:center;font-weight:bold;font-size:${fs + 8}pt;margin:4pt 0;">${esc(f.productName)}</div>
         <div style="text-align:center;font-size:${fs + 2}pt;">${esc(brl(f.price))}</div>

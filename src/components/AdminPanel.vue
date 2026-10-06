@@ -302,11 +302,19 @@
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Cabeçalho da Ficha</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cabeçalho da Ficha (nome do programa)</label>
             <input
               v-model="printSettings.header"
               class="w-full border rounded-lg px-3 py-2"
-              placeholder="Ex.: FESTA JUNINA 2026"
+              placeholder="Ex.: WJ EVENTOS"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do evento (sai na ficha)</label>
+            <input
+              v-model="printSettings.eventName"
+              class="w-full border rounded-lg px-3 py-2"
+              placeholder="Ex.: Festa Junina 2026"
             />
           </div>
           <div>
@@ -327,6 +335,10 @@
               class="w-full border rounded-lg px-3 py-2"
             />
           </div>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="printSettings.autoPrint" type="checkbox" class="w-4 h-4" />
+            Imprimir automaticamente ao finalizar a venda
+          </label>
           <button @click="saveSettings" class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
             Salvar Configurações
           </button>
@@ -373,10 +385,12 @@ const operators = ref([
 
 const printSettings = ref({
   paperWidth: 58,
-  header: 'EVENTO',
+  header: 'WJ EVENTOS',
+  eventName: '',
   footer: 'Troque sua ficha no balcão',
   fontSize: 12,
   showLogo: false,
+  autoPrint: true,
 })
 
 function formatDate(dateStr) {

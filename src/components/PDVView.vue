@@ -216,7 +216,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePDVStore } from '@/stores/pdv.store'
 import { loadProducts } from '@/utils/products'
-import { printFiches } from '@/utils/ticket'
+import { printFiches, shouldAutoPrint } from '@/utils/ticket'
 
 // Stores
 const authStore = useAuthStore()
@@ -305,11 +305,15 @@ async function processSale() {
   )
 
   if (result.success) {
-    try {
-      await printFiches(result.fiches || [])
-    } catch (err) {
-      console.error('Falha na impressão:', err)
-      alert('Venda salva, mas a impressão falhou. Use "Reimprimir".')
+    if (shouldAutoPrint()) {
+      try {
+        await printFiches(result.fiches || [])
+      } catch (err) {
+        console.error('Falha na impressão:', err)
+        alert('Venda salva, mas a impressão falhou. Use "🖨️ Reimprimir".')
+      }
+    } else {
+      alert('Venda salva com sucesso!')
     }
   } else {
     alert('Erro ao processar venda: ' + result.error)
