@@ -129,6 +129,12 @@ from (values
   ('Caixa 1', '1111', 'operator'),
   ('Caixa 2', '2222', 'operator'),
   ('Caixa 3', '3333', 'operator'),
-  ('Caixa 4', '4444', 'operator')
+  ('Caixa 4', '4444', 'operator'),
+  ('Caixa 5', '5555', 'operator'),
+  ('Caixa 6', '6666', 'operator'),
+  ('Caixa 7', '7777', 'operator'),
+  ('Caixa 8', '8888', 'operator'),
+  ('Caixa 9', '9999', 'operator'),
+  ('Caixa 10', '1010', 'operator')
 ) as s(name, pin, role)
 where not exists (select 1 from operators o where o.pin = s.pin);

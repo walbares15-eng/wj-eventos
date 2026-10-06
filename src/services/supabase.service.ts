@@ -109,6 +109,12 @@ export class SupabaseService {
       '2222': { id: 'op-4', name: 'Caixa 2', role: 'operator', pin: '2222' },
       '3333': { id: 'op-5', name: 'Caixa 3', role: 'operator', pin: '3333' },
       '4444': { id: 'op-6', name: 'Caixa 4', role: 'operator', pin: '4444' },
+      '5555': { id: 'op-7', name: 'Caixa 5', role: 'operator', pin: '5555' },
+      '6666': { id: 'op-8', name: 'Caixa 6', role: 'operator', pin: '6666' },
+      '7777': { id: 'op-9', name: 'Caixa 7', role: 'operator', pin: '7777' },
+      '8888': { id: 'op-10', name: 'Caixa 8', role: 'operator', pin: '8888' },
+      '9999': { id: 'op-11', name: 'Caixa 9', role: 'operator', pin: '9999' },
+      '1010': { id: 'op-12', name: 'Caixa 10', role: 'operator', pin: '1010' },
       '1234': { id: 'op-3', name: 'João (Supervisor)', role: 'supervisor', pin: '1234' },
     }
 
