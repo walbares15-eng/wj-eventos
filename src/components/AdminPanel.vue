@@ -167,7 +167,14 @@
                     @click="photoInput && photoInput.click()"
                     class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
                   >
-                    {{ productForm.image ? 'Trocar foto' : 'Escolher foto' }}
+                    {{ productForm.image ? 'Trocar foto' : 'Enviar foto' }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="showGalleryPicker = true"
+                    class="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100"
+                  >
+                    🖼️ Da galeria
                   </button>
                   <button
                     v-if="productForm.image"
@@ -254,6 +261,61 @@
         </div>
       </div>
 
+      <!-- Gallery Tab -->
+      <div v-if="activeTab === 'gallery'" class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-lg font-bold">Galeria de fotos ({{ galleryPhotos.length }})</h2>
+          <button
+            @click="galleryInput && galleryInput.click()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            + Enviar fotos
+          </button>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">
+          Envie de uma vez todas as fotos dos produtos (pode selecionar várias).
+          Depois, ao cadastrar um produto, toque em <strong>"Da galeria"</strong>.
+        </p>
+        <input
+          ref="galleryInput"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          @change="onGalleryUpload"
+        />
+
+        <div v-if="galleryPhotos.length === 0" class="text-center py-8 text-gray-500">
+          <div class="text-4xl mb-2">🖼️</div>
+          <p>Nenhuma foto ainda. Toque em "Enviar fotos".</p>
+        </div>
+
+        <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          <div
+            v-for="photo in galleryPhotos"
+            :key="photo.id"
+            class="border rounded-lg p-2 text-center"
+          >
+            <img
+              :src="photo.dataUrl"
+              :alt="photo.label"
+              class="w-full h-20 object-cover rounded mb-1"
+            />
+            <input
+              v-model="photo.label"
+              @change="saveGalleryLabel(photo)"
+              class="w-full text-xs border rounded px-1 py-1 text-center"
+            />
+            <button
+              @click="removeGalleryPhoto(photo.id)"
+              class="text-red-600 text-xs hover:underline mt-1"
+            >
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Operators Tab -->
       <div v-if="activeTab === 'operators'" class="bg-white rounded-lg shadow-md p-6">
         <div class="flex justify-between items-center mb-4">
@@ -300,6 +362,44 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Seletor da galeria (dentro do cadastro de produto) -->
+      <div
+        v-if="showGalleryPicker"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        @click.self="showGalleryPicker = false"
+      >
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">Escolher da galeria</h3>
+            <button @click="showGalleryPicker = false" class="text-gray-500 text-xl px-2">×</button>
+          </div>
+          <div v-if="galleryPhotos.length === 0" class="text-center py-6 text-gray-500">
+            <p class="mb-3">Galeria vazia. Envie as fotos primeiro na aba 🖼️ Galeria.</p>
+            <button
+              @click="showGalleryPicker = false; activeTab = 'gallery'"
+              class="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              Ir para a Galeria
+            </button>
+          </div>
+          <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            <button
+              v-for="photo in galleryPhotos"
+              :key="photo.id"
+              @click="pickGalleryPhoto(photo)"
+              class="border rounded-lg p-2 hover:border-blue-500 hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <img
+                :src="photo.dataUrl"
+                :alt="photo.label"
+                class="w-full h-20 object-cover rounded mb-1"
+              />
+              <p class="text-xs text-gray-700 truncate">{{ photo.label }}</p>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Modal de operador (nome + PIN) -->
@@ -470,6 +570,12 @@ import {
   deleteProductAsync,
 } from '@/utils/products'
 import {
+  loadGallery,
+  addPhotosToGallery,
+  deleteGalleryPhoto,
+  renameGalleryPhoto,
+} from '@/utils/gallery'
+import {
   loadOperatorsAsync,
   createOperatorAsync,
   updateOperatorAsync,
@@ -483,6 +589,7 @@ const activeTab = ref('events')
 const tabs = [
   { id: 'events', label: '📅 Eventos' },
   { id: 'products', label: '🍺 Produtos' },
+  { id: 'gallery', label: '🖼️ Galeria' },
   { id: 'operators', label: '👤 Operadores' },
   { id: 'settings', label: '🖨️ Impressão' },
   { id: 'backup', label: '💾 Backup' },
@@ -582,6 +689,32 @@ async function onPhotoSelected(event) {
 
 function removePhoto() {
   productForm.value.image = null
+}
+
+// ---- Galeria de fotos ----
+const galleryPhotos = ref(loadGallery())
+const galleryInput = ref(null)
+const showGalleryPicker = ref(false)
+
+async function onGalleryUpload(event) {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+  galleryPhotos.value = await addPhotosToGallery(files)
+  event.target.value = ''
+}
+
+function removeGalleryPhoto(id) {
+  if (!confirm('Excluir esta foto da galeria?')) return
+  galleryPhotos.value = deleteGalleryPhoto(id)
+}
+
+function saveGalleryLabel(photo) {
+  galleryPhotos.value = renameGalleryPhoto(photo.id, photo.label)
+}
+
+function pickGalleryPhoto(photo) {
+  productForm.value.image = photo.dataUrl
+  showGalleryPicker.value = false
 }
 
 async function saveProduct() {
@@ -724,7 +857,7 @@ function saveSettings() {
 }
 
 // ---- Backup: exportar do PC e importar nos celulares ----
-const BACKUP_KEYS = ['wj-products', 'wj-operators', 'print-settings']
+const BACKUP_KEYS = ['wj-products', 'wj-operators', 'wj-gallery', 'print-settings']
 const backupInput = ref(null)
 
 function exportBackup() {
@@ -784,6 +917,7 @@ function importBackup(event) {
 onMounted(async () => {
   products.value = await loadProductsAsync()
   operators.value = await loadOperatorsAsync()
+  galleryPhotos.value = loadGallery()
   const saved = localStorage.getItem('print-settings')
   if (saved) {
     printSettings.value = { ...printSettings.value, ...JSON.parse(saved) }
